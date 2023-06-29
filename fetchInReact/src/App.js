@@ -1,61 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import MoviesList from './components/MoviesList';
 import './App.css';
 
 function App() {
-
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [customError, setCustomError] = useState(null);
-  const [retry,setRetry] = useState(true)
+  const [error, setError] = useState(null);
 
-  async function dummyMovies() {
-
-    setIsLoading(true)
-    setCustomError(null)
+  const fetchMoviesHandler = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const res = await fetch("https://swapi.dev/api/film");
-     
-      console.log(res)
-      if (res.ok === false) {
-        throw new customError("something went wrong retrying...")
+      const response = await fetch('https://swapi.dev/api/films/');
+      if (!response.ok) {
+        throw new Error('Something went wrong!');
       }
-      const res2 = await res.json();
-      
-      console.log(res2);
-      
 
-      setMovies(res2.results)
-      setIsLoading(false)
-    }
-    catch(error)
-    {
-      setCustomError(error.message)
-    }
-    if(!retry)
-    setIsLoading(false)
+      const data = await response.json();
 
-    
+      const transformedMovies = data.results.map((movieData) => {
+        return {
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
+        };
+      });
+      setMovies(transformedMovies);
+    } catch (error) {
+      setError(error.message);
+    }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  let content = <p>Found no movies.</p>;
+
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
   }
 
-  function stopRetry()
-  {
-    setIsLoading(false)
-    setRetry(true)
+  if (error) {
+    content = <p>{error}</p>;
+  }
+
+  if (isLoading) {
+    content = <p>Loading...</p>;
   }
 
   return (
     <React.Fragment>
       <section>
-        <button onClick={dummyMovies}>Fetch Movies</button>
-        <button onClick={stopRetry}>Stop retrying</button>
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
-      <section>
-        {!isLoading && <MoviesList movies={movies} />}
-        {isLoading && <p>Loading data....</p>}
-        {!isLoading && customError && <p>{customError}</p> }
-      </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
